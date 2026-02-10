@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espace Pédagogique - M. Dieu</title>
+    <style>
+        /* --- DESIGN DU SITE --- */
+        :root {
+            --primary: #1e293b;
+            --hist: #7f1d1d;
+            --geo: #14532d;
+            --emc: #1e40af;
+            --bg: #f8fafc;
+            --text: #334155;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            line-height: 1.6;
+        }
+
+        header { 
+            background: var(--primary); 
+            color: white; 
+            padding: 4rem 1rem; 
+            text-align: center; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        header h1 { margin: 0; font-size: 2.5rem; }
+        header p { opacity: 0.9; font-style: italic; margin-top: 10px; }
+
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+
+        /* Grille des cours */
+        #cours-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+            gap: 30px; 
+        }
+
+        /* Style des cartes */
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover { transform: translateY(-8px); }
+
+        .card-img { 
+            width: 100%; 
+            height: 200px; 
+            object-fit: cover; 
+            background-color: #e2e8f0;
+        }
+
+        .card-content { padding: 20px; flex-grow: 1; }
+
+        .badge { 
+            display: inline-block; 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+            color: white; 
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        /* Couleurs des badges selon la matière */
+        .badge-histoire { background-color: var(--hist); }
+        .badge-géographie { background-color: var(--geo); }
+        .badge-emc { background-color: var(--emc); }
+        .badge-default { background-color: #64748b; }
+
+        .card h3 { margin: 0 0 10px 0; color: var(--primary); font-size: 1.4rem; }
+        .card p { font-size: 0.95rem; color: #475569; }
+
+        .btn-link { 
+            display: block; 
+            text-align: center; 
+            padding: 15px; 
+            background: #f1f5f9; 
+            color: var(--primary); 
+            text-decoration: none; 
+            font-weight: bold; 
+            border-top: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .btn-link:hover { background: var(--primary); color: white; }
+
+        /* Message de chargement et erreurs */
+        #loading { 
+            text-align: center; 
+            padding: 100px; 
+            font-size: 1.2rem; 
+            color: #64748b;
+        }
+
+        @media (max-width: 600px) {
+            header h1 { font-size: 1.8rem; }
+            #cours-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Espace de Travail - M. Dieu</h1>
+    <p>Histoire, Géographie & Enseignement Moral et Civique</p>
+</header>
+
+<div class="container">
+    <div id="loading">Chargement des ressources pédagogiques...</div>
+    <div id="cours-container"></div>
+</div>
+
+<script>
+    /* --- CONFIGURATION --- */
+    // Votre lien Google Sheets publié en CSV
+    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRH_G8yeF40Tno89YBIOa6lrl6ufith_PaAu7jo_RXlYx2xgiYlfh5nVW_k90Gd5d79OWXFj16UkhpC/pub?output=csv";
+
+    async function fetchCours() {
+        const container = document.getElementById('cours-container');
+        const loader = document.getElementById('loading');
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Erreur réseau');
+            
+            const data = await response.text();
+            
+            // On sépare les lignes et on ignore la première (les titres)
+            const rows = data.split(/\r?\n/).filter(row => row.trim() !== "").slice(1); 
+            
+            if (rows.length === 0) {
+                loader.innerText = "Aucun cours n'est disponible pour le moment.";
+                return;
+            }
+
+            loader.style.display = 'none';
+            container.innerHTML = '';
+
+            rows.forEach(row => {
+                // Regex pour séparer par virgule sans couper les textes entre guillemets
+                const cols = row.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
+                
+                if (cols && cols.length >= 6) {
+                    const matiere = cols[0].replace(/"/g, "").trim();
+                    const niveau = cols[1].replace(/"/g, "").trim();
+                    const titre = cols[2].replace(/"/g, "").trim();
+                    const desc = cols[3].replace(/"/g, "").trim();
+                    const image = cols[4].replace(/"/g, "").trim();
+                    const lien = cols[5].replace(/"/g, "").trim();
+
+                    // Sélection de la couleur du badge
+                    let badgeClass = "badge-default";
+                    const m = matiere.toLowerCase();
+                    if(m.includes("hist")) badgeClass = "badge-histoire";
+                    if(m.includes("géo") || m.includes("geo")) badgeClass = "badge-géographie";
+                    if(m.includes("emc")) badgeClass = "badge-emc";
+
+                    const cardHtml = `
+                        <div class="card">
+                            <img src="${image}" class="card-img" alt="${titre}" onerror="this.src='https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&w=500&q=80'">
+                            <div class="card-content">
+                                <span class="badge ${badgeClass}">${matiere} • ${niveau}</span>
+                                <h3>${titre}</h3>
+                                <p>${desc}</p>
+                            </div>
+                            <a href="${lien}" target="_blank" class="btn-link">Accéder au cours →</a>
+                        </div>
+                    `;
+                    container.innerHTML += cardHtml;
+                }
+            });
+
+        } catch (error) {
+            console.error(error);
+            loader.innerHTML = `<p style="color:red">Erreur
